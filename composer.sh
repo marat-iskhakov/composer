@@ -41,7 +41,7 @@ copy_to_archive() {
     fi
 
     echo_c 35 "\nAssembled firmware available in:"
-    tree -C "${OUTPUT_ARCHIVE_DIR}"
+    #tree -C "${OUTPUT_ARCHIVE_DIR}"
 }
 
 copy_to_tftp() {
@@ -90,7 +90,7 @@ echo_c 30 "Version: ${VERSION}"
 while [ -z "${PROJECT}" ]; do select_project; done
 
 echo_c 31 "\nStarting a project for ${PROJECT}"
-tree -C ${COMPOSER_DIR}/projects/${PROJECT}
+#tree -C ${COMPOSER_DIR}/projects/${PROJECT}
 
 sleep 3
 
