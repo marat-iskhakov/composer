@@ -103,6 +103,7 @@ if [ ! -d "$FIRMWARE_DIR" ]; then
     git clone https://github.com/OpenIPC/firmware.git "$FIRMWARE_DIR"
     cd "$FIRMWARE_DIR"
 	git reset --hard "af7d737"
+	BUILD_DEPS=1
 else
     echo_c 33 "\nUpdating Firmware"
     cd "$FIRMWARE_DIR"
