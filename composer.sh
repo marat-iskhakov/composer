@@ -13,7 +13,6 @@
 
 RELEASE=""
 PROJECT="$1"
-BUILD_DEPS="$2"
 
 TFTP_STORAGE="root@172.17.32.17:/mnt/bigger-2tb/Rotator/TFTP"
 
@@ -103,7 +102,6 @@ if [ ! -d "$FIRMWARE_DIR" ]; then
     git clone https://github.com/OpenIPC/firmware.git "$FIRMWARE_DIR"
     cd "$FIRMWARE_DIR"
 	git reset --hard "af7d737"
-	BUILD_DEPS=1
 else
     echo_c 33 "\nUpdating Firmware"
     cd "$FIRMWARE_DIR"
@@ -120,9 +118,6 @@ echo_c 33 "\nCopying project files"
 cp -afv ${COMPOSER_DIR}/projects/${PROJECT}/*  ${FIRMWARE_DIR}
 
 echo_c 33 "\nBuilding the project"
-if [ -n $BUILD_DEPS ]; then
-	make BOARD=${PROJECT} deps
-fi
 make BOARD=${PROJECT} distclean
 make BOARD=${PROJECT} all
 
