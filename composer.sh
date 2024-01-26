@@ -13,6 +13,7 @@
 
 RELEASE=""
 PROJECT="$1"
+BUILD_DEPS="$2"
 
 TFTP_STORAGE="root@172.17.32.17:/mnt/bigger-2tb/Rotator/TFTP"
 
@@ -29,20 +30,18 @@ echo_c() {
 
 copy_to_archive() {
     echo_c 32 "Copying files to local archive"
-    mkdir -p "${COMPOSER_DIR}/archive/${PROJECT}/${TIMESTAMP}"
+	OUTPUT_ARCHIVE_DIR=${COMPOSER_DIR}/archive/${PROJECT}
+    mkdir -p "${OUTPUT_ARCHIVE_DIR}"
     cp -a \
-        ${FIRMWARE_DIR}/output/images/rootfs.squashfs.* \
-        ${FIRMWARE_DIR}/output/images/uImage.* \
-        ${FIRMWARE_DIR}/output/images/*.tar \
         ${FIRMWARE_DIR}/output/images/openipc.*.tgz \
-        ${COMPOSER_DIR}/archive/${PROJECT}/${TIMESTAMP}
+        ${OUTPUT_ARCHIVE_DIR}
 
     if [ -f "${FIRMWARE_DIR}/output/images/autoupdate-kernel.img" ] ; then
-        cp -a ${FIRMWARE_DIR}/output/images/autoupdate* ${COMPOSER_DIR}/archive/${PROJECT}/${TIMESTAMP}
+        cp -a ${FIRMWARE_DIR}/output/images/autoupdate* ${OUTPUT_ARCHIVE_DIR}
     fi
 
     echo_c 35 "\nAssembled firmware available in:"
-    tree -C "${COMPOSER_DIR}/archive/${PROJECT}/${TIMESTAMP}"
+    tree -C "${OUTPUT_ARCHIVE_DIR}"
 }
 
 copy_to_tftp() {
@@ -96,17 +95,18 @@ tree -C ${COMPOSER_DIR}/projects/${PROJECT}
 sleep 3
 
 echo_c 33 "\nUpdating Composer"
-git pull
+#git pull
 
-rm -rf openipc  # Weed work with this command
+#rm -rf openipc  # Weed work with this command
 if [ ! -d "$FIRMWARE_DIR" ]; then
     echo_c 33 "\nDownloading Firmware"
-    git clone --depth=1 https://github.com/OpenIPC/firmware.git "$FIRMWARE_DIR"
+    git clone https://github.com/OpenIPC/firmware.git "$FIRMWARE_DIR"
     cd "$FIRMWARE_DIR"
+	git reset --hard "af7d737"
 else
     echo_c 33 "\nUpdating Firmware"
     cd "$FIRMWARE_DIR"
-    # git reset HEAD --hard
+    git reset --hard "af7d737"
     # git pull --rebase
 fi
 
@@ -119,6 +119,10 @@ echo_c 33 "\nCopying project files"
 cp -afv ${COMPOSER_DIR}/projects/${PROJECT}/*  ${FIRMWARE_DIR}
 
 echo_c 33 "\nBuilding the project"
+if [ -n $BUILD_DEPS ]; then
+	make BOARD=${PROJECT} deps
+fi
+make BOARD=${PROJECT} distclean
 make BOARD=${PROJECT} all
 
 copy_to_archive
