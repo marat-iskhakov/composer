@@ -1,49 +1,88 @@
 #!/bin/sh
 
-again_high_target=120
-again_low_target=50
+
+ : "${again_high_target:=$(fw_printenv -n dn-monitor_again_high)}" "${again_high_target:=90}"
+ : "${again_medium_target:=$(fw_printenv -n dn-monitor_again_medium)}" "${again_medium_target:=40}"
+ : "${again_low_target:=$(fw_printenv -n dn-monitor_again_low)}" "${again_low_target:=30}"
+ : "${exptime_target:=$(fw_printenv -n dn-monitor_exptime)}" "${exptime_target:=900}"
+
 pollingInterval=4
-led_state=0
-again_led=0
+debug=0
+nightmode_set=off
 
-led_on(){
-	curl http://localhost/night/on && \
-	echo LIGHT IS ON
+nightmode_action(){
+	local state="$1"
+	curl http://localhost/night/$state && \
+	/usr/sbin/irled.sh $state && \
+	echo "NIGHT IS: "$state
 }
 
-led_off(){
-	curl http://localhost/night/off && \
-	echo LIGHT IS OFF
-}
 
 main(){
 
 	echo "...................."
-	echo "Watching at isp_again > ${again_high_target} to LED ON"
-	echo "Watching at isp_again < ${again_low_target} to LED OFF"
+	echo "Watching at isp_again > ${again_high_target} to NIGHT ON"
+	echo "Watching at isp_again < ${again_low_target} to NIGHT OFF"
 	echo "Polling interval: ${pollingInterval} sec"
 	echo "...................."
 
 	sleep 10
-	led_off
+	majestic_nightmode=$(cli -g .nightMode.enabled)
+	if [ $majestic_nightmode == "true" ] ;then
+	    echo "Disabling majestic nightmode..."
+	    cli -s .nightMode.enabled false
+    	    killall -HUP majestic
+	    sleep 10
+	fi
+	
+	nightmode_action "off"
 
 	while true; do
-
-		led_state=$(curl -s http://localhost/metrics | grep ^night_enabled  | cut -d' ' -f2)
-		again_led=$(curl -s http://localhost/metrics | grep ^isp_again | cut -d' ' -f2)
-
-		echo "again_led: "$again_led
-
-		if [ $again_led -lt $again_low_target -a $led_state -eq 1 ] ;then
-			led_off
+		nightmode_state=$(curl -s http://localhost/metrics | grep ^night_enabled  | cut -d' ' -f2 | head -1)
+		if [ -z $nightmode_state ] ; then
+		    error=1
 		fi
 
-		if [ $again_led -gt $again_high_target -a $led_state -eq 0 ] ;then
-			led_on
+		isp_again=$(curl -s http://localhost/metrics | grep ^isp_again | cut -d' ' -f2 | head -1)
+		if [ -z $isp_again ] ; then
+		    error=1
 		fi
 
-		sleep ${pollingInterval}
-		echo "...................."
+		isp_exptime=$(curl -s http://localhost/metrics | grep ^isp_exptime | cut -d' ' -f2 | head -1)
+		if [ -z $isp_exptime ] ; then
+		    error=1
+		fi
+
+		nightmode_old_set=$nightmode_set
+
+		if [ -z $error ] ; then
+		    if [ $isp_again -lt $again_low_target ] && [ $isp_exptime -lt $exptime_target ] && [ $nightmode_state -eq 1 ]  ;then
+			    nightmode_set=off
+		    fi
+
+		    if [ $isp_again -gt $again_high_target ] && [ $nightmode_state -eq 0 ]  ;then
+			    nightmode_set=on
+		    fi
+
+		    if [ $isp_again -gt $again_medium_target ] && [ $isp_exptime -gt $exptime_target ] && [ $nightmode_state -eq 0 ]  ;then
+			    nightmode_set=on
+		    fi
+		
+		    if [ $nightmode_old_set != $nightmode_set ] ; then
+			nightmode_action $nightmode_set
+		    fi
+		fi
+		
+		if [ $debug -eq 1 ] ; then
+		    echo "isp_again: "$isp_again
+		    echo "isp_exptime: "$isp_exptime
+		    echo "nightmode_state: "$nightmode_state
+		    echo "nightmode_old_set: "$nightmode_old_set
+		    echo "nightmode_set: "$nightmode_set
+		    echo "...................."
+		fi
+		
+		    sleep ${pollingInterval}
         done
 }
 
