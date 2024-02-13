@@ -12,7 +12,7 @@ nightmode_set=off
 
 nightmode_action(){
 	local state="$1"
-	curl http://localhost/night/$state && \
+	curl -s http://localhost/night/$state && \
 	/usr/sbin/irled.sh $state && \
 	echo "NIGHT IS: "$state
 }
